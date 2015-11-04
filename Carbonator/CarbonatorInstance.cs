@@ -111,12 +111,6 @@ namespace Crypton.Carbonator
             Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(conf.DefaultCulture);
             Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo(conf.DefaultCulture);
 
-            // determine how long it takes for us to collect metrics
-            // we'll adjust timer so that collecting this data is slightly more accurate
-            // but not too much to cause skew in performance (e.g. our CPU usage goes up when we do this)
-            Stopwatch timeTaken = new Stopwatch();
-            timeTaken.Start();
-
             // collect metric samples for each of our counters
             foreach (Config.PerformanceCounterElement counterConfig in Config.CarbonatorSection.Current.Counters)
             {
@@ -160,17 +154,6 @@ namespace Crypton.Carbonator
 
                 // BlockingCollection will halt this thread if we are exceeding capacity
                 _metricsList.Add(new CollectedMetric(metricPath, sampleValue));
-            }
-
-            timeTaken.Stop();
-
-            // adjust how often we collect metrics to stay within hysteresis
-            int periodTime = (int)Math.Abs(1000 - (int)timeTaken.ElapsedMilliseconds);
-            if (periodTime > 100 && periodTime <= 1000)
-            {
-                _metricCollectorTimer.Change(100, periodTime);
-                if (Config.CarbonatorSection.Current.LogLevel >= 4)
-                    EventLog.WriteEntry(Program.EVENT_SOURCE, string.Format("Adjusted _metricCollector periodTime={0}ms", periodTime), EventLogEntryType.Information);
             }
 
             control.IsRunning = false;
